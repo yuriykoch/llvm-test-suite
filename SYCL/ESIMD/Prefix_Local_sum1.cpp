@@ -176,8 +176,9 @@ int main(int argc, char *argv[]) {
     }
   } catch (cl::sycl::exception const &e) {
     std::cout << "SYCL exception caught: " << e.what() << '\n';
-    free(pInputs, q);
+    free(pDeviceOutputs, q);
     free(pExpectOutputs);
+    free(pInputs);
     return 1;
   }
 
