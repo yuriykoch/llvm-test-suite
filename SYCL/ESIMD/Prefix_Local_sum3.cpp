@@ -332,7 +332,6 @@ int main(int argc, char *argv[]) {
 
   auto dev = q.get_device();
   std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
-  auto ctxt = q.get_context();
 
   // allocate and initialized input data
   unsigned int *pInputs = static_cast<unsigned int *>(
@@ -342,8 +341,8 @@ int main(int argc, char *argv[]) {
   }
 
   // allocate kernel buffer
-  unsigned int *pDeviceOutputs = static_cast<unsigned int *>(
-      malloc_shared(size * TUPLE_SZ * sizeof(unsigned int), dev, ctxt));
+  unsigned int *pDeviceOutputs =
+      malloc_shared<unsigned int>(size * TUPLE_SZ, q);
 
   // allocate & intialize expected result
   unsigned int *pExpectOutputs = static_cast<unsigned int *>(
@@ -389,7 +388,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Prefix " << (pass ? "=> PASSED" : "=> FAILED") << std::endl
             << std::endl;
 
-  free(pDeviceOutputs, ctxt);
+  free(pDeviceOutputs, q);
   free(pExpectOutputs);
   free(pInputs);
   return 0;

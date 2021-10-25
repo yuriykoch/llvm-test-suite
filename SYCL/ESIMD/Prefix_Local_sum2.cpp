@@ -126,7 +126,6 @@ int main(int argc, char *argv[]) {
 
   auto dev = q.get_device();
   std::cout << "Running on " << dev.get_info<info::device::name>() << "\n";
-  auto ctxt = q.get_context();
 
   // allocate and initialized input
   unsigned int *pInputs = static_cast<unsigned int *>(
@@ -136,8 +135,8 @@ int main(int argc, char *argv[]) {
   }
 
   // allocate device buffer
-  unsigned int *pDeviceOutputs = static_cast<unsigned int *>(
-      malloc_shared(size * TUPLE_SZ * sizeof(unsigned int), dev, ctxt));
+  unsigned int *pDeviceOutputs =
+      malloc_shared<unsigned int>(size * TUPLE_SZ, q);
 
   // allocate & compute expected result
   unsigned int *pExpectOutputs = static_cast<unsigned int *>(
@@ -171,7 +170,7 @@ int main(int argc, char *argv[]) {
     }
   } catch (cl::sycl::exception const &e) {
     std::cout << "SYCL exception caught: " << e.what() << '\n';
-    free(pInputs, ctxt);
+    free(pInputs, q);
     free(pExpectOutputs);
     return 1;
   }
@@ -187,7 +186,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Prefix " << (pass ? "=> PASSED" : "=> FAILED") << std::endl
             << std::endl;
 
-  free(pDeviceOutputs, ctxt);
+  free(pDeviceOutputs, q);
   free(pExpectOutputs);
   free(pInputs);
   return 0;
