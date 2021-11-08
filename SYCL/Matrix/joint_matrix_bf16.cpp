@@ -75,6 +75,8 @@ void matrix_multiply(big_matrix<T1, NUM_ROWS_C, NUM_COLS_C> &C,
            // For B, since current implementation does not support non-packed
            // layout, users need to specify the packed_b layout. 
            // By default, the layout is row_major 
+           joint_matrix<unsigned short, TK, TN, matrix_layout::packed_b> sub_b(
+               sg);
            joint_matrix<unsigned short, TK, TN, matrix_layout::packed_b> sub_b(sg);
            joint_matrix<float, TM, TN> sub_c(sg);
            
