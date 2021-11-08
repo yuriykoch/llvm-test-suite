@@ -77,7 +77,6 @@ void matrix_multiply(big_matrix<T1, NUM_ROWS_C, NUM_COLS_C> &C,
            // By default, the layout is row_major 
            joint_matrix<unsigned short, TK, TN, matrix_layout::packed_b> sub_b(
                sg);
-           joint_matrix<unsigned short, TK, TN, matrix_layout::packed_b> sub_b(sg);
            joint_matrix<float, TM, TN> sub_c(sg);
            
            joint_matrix_load(sg, sub_c,
