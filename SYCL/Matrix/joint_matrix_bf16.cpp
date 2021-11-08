@@ -73,12 +73,11 @@ void matrix_multiply(big_matrix<T1, NUM_ROWS_C, NUM_COLS_C> &C,
            sub_group sg = spmd_item.get_sub_group();
            joint_matrix<unsigned short, TM, TK> sub_a(sg);
            // For B, since current implementation does not support non-packed
-           // layout, users need to specify the packed_b layout. 
-           // By default, the layout is row_major 
+           // layout, users need to specify the packed_b layout.
+           // By default, the layout is row_major
            joint_matrix<unsigned short, TK, TN, matrix_layout::packed_b> sub_b(
                sg);
            joint_matrix<float, TM, TN> sub_c(sg);
-           
            joint_matrix_load(sg, sub_c,
                              accC.get_pointer() + (sg_startx * TM) * N +
                                  sg_starty / SG_SZ * TN,
