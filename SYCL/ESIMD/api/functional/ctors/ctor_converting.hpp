@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #pragma once
+#define ESIMD_TESTS_DISABLE_DEPRECATED_TEST_DESCRIPTION_FOR_LOGS
 
 #include "../value_conv.hpp"
 #include "common.hpp"
@@ -90,28 +91,20 @@ private:
   }
 };
 
-template <typename T, int NumElems, typename ContextT>
+template <int NumElems, typename ContextT>
 class ConvCtorTestDescription : public ITestDescription {
 public:
-  ConvCtorTestDescription(size_t index, T retrieved_val, T expected_val,
-                          const std::string &src_data_type,
+  ConvCtorTestDescription(const std::string &src_data_type,
                           const std::string &dst_data_type)
-      : m_src_data_type(src_data_type), m_dst_data_type(dst_data_type),
-        m_retrieved_val(retrieved_val), m_expected_val(expected_val),
-        m_index(index) {}
+      : m_src_data_type(src_data_type), m_dst_data_type(dst_data_type) {}
 
   std::string to_string() const override {
-    // TODO: Make strings for fp values more short during failure output, may be
-    // by using hex representation
-    std::string log_msg("Failed for converting from simd<");
+    std::string log_msg("conversion from simd<");
 
     log_msg += m_src_data_type + ", " + std::to_string(NumElems) + ">";
     log_msg +=
         ", to simd<" + m_dst_data_type + ", " + std::to_string(NumElems) + ">";
     log_msg += ", with context: " + ContextT::get_description();
-    log_msg += ", retrieved: " + std::to_string(m_retrieved_val);
-    log_msg += ", expected: " + std::to_string(m_expected_val);
-    log_msg += ", at index: " + std::to_string(m_index);
 
     return log_msg;
   }
@@ -119,9 +112,6 @@ public:
 private:
   const std::string m_src_data_type;
   const std::string m_dst_data_type;
-  const T m_retrieved_val;
-  const T m_expected_val;
-  const size_t m_index;
 };
 
 // The main test routine.
@@ -129,11 +119,14 @@ private:
 template <typename SrcT, typename DimT, typename DstT, typename TestCaseT>
 class run_test {
   static constexpr int NumElems = DimT::value;
+  using TestDescriptionT = ConvCtorTestDescription<NumElems, TestCaseT>;
 
 public:
   bool operator()(sycl::queue &queue, const std::string &src_data_type,
                   const std::string &dst_data_type) {
     bool passed = true;
+    log::trace<TestDescriptionT>(src_data_type, dst_data_type);
+
     const std::vector<SrcT> ref_data =
         generate_ref_conv_data<SrcT, DstT, NumElems>();
 
@@ -179,7 +172,8 @@ private:
     for (size_t i = 0; i < result.size(); ++i) {
       // We ensure there is no UB here by preparing appropriate reference
       // values.
-      const DstT &expected = static_cast<DstT>(ref_data[i]);
+      const SrcT &reference = ref_data[i];
+      const DstT &expected = static_cast<DstT>(reference);
       const DstT &retrieved = result[i];
       if constexpr (type_traits::is_sycl_floating_point_v<DstT>) {
         // std::isnan() couldn't be called for integral types because it call is
@@ -196,30 +190,26 @@ private:
             const auto lower =
                 value<DstT>::nextafter(expected, value<DstT>::lowest());
             if ((retrieved < lower) || (retrieved > upper)) {
-              passed = fail_test(i, retrieved, expected, src_data_type,
-                                 dst_data_type);
+              passed = false;
+              log::fail(TestDescriptionT(src_data_type, dst_data_type),
+                        "Unexpected value at index ", i,
+                        ", retrieved: ", retrieved, ", expected: ", expected,
+                        " +- 1 ULP after conversion from ", reference);
             }
           }
         }
       } else {
         if (expected != retrieved) {
-          passed =
-              fail_test(i, retrieved, expected, src_data_type, dst_data_type);
+          passed = false;
+          log::fail(TestDescriptionT(src_data_type, dst_data_type),
+                    "Unexpected value at index ", i, ", retrieved: ", retrieved,
+                    ", expected: ", expected, " after conversion from ",
+                    reference);
         }
       }
     }
 
     return passed;
-  }
-
-  bool fail_test(size_t index, DstT retrieved, DstT expected,
-                 const std::string &src_data_type,
-                 const std::string &dst_data_type) {
-    const auto description = ConvCtorTestDescription<DstT, NumElems, TestCaseT>(
-        index, retrieved, expected, src_data_type, dst_data_type);
-    log::fail(description);
-
-    return false;
   }
 };
 
