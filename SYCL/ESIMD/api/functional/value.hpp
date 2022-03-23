@@ -175,6 +175,41 @@ template <typename DataT> struct value {
 
     return base_val + sign * ulp(base_val, direction);
   }
+
+  // Provides number of digits in 2-radix that can be represented by the type
+  // without change
+  static constexpr int digits2() {
+    if constexpr (!type_traits::is_sycl_floating_point_v<DataT>) {
+      return std::numeric_limits<DataT>::digits;
+    } else if constexpr (std::is_same_v<DataT, double>) {
+      return 53;
+    } else if constexpr (std::is_same_v<DataT, float>) {
+      return 24;
+    } else if constexpr (std::is_same_v<DataT, sycl::half>) {
+      return 11;
+    }
+  }
+
+  static DataT max_exact_integral() {
+    if constexpr (!type_traits::is_sycl_floating_point_v<DataT>) {
+      return max();
+    } else {
+      // First we get the highest integral value with neg_ulp() equal to 1,
+      // then we safely decrement it with no precision loss.
+      // For example for 32-bit float with 23 fraction bits we'll have:
+      //   pow(2, 24) - 1 = 16777216 - 1 = 16777215
+      // No sycl::pow() usage here to have an exact result
+      return pow2<DataT, digits2()>() - 1;
+    }
+  }
+
+  static DataT lowest_exact_integral() {
+    if constexpr (!type_traits::is_sycl_floating_point_v<DataT>) {
+      return lowest();
+    } else {
+      return -max_exact_integral();
+    }
+  }
 };
 
 // Provides std::vector with the reference data according to the currently

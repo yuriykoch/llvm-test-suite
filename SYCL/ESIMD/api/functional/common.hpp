@@ -61,6 +61,27 @@ constexpr int round_up_int_division(int a, int b) {
   return ((a % b) > 0) ? (a / b + 1) : (a / b);
 }
 
+// Utility function for exact pow2 calculation
+// The sycl::pow() would have accuracy <= 16 ULP according to SYCL 2020 rev.4
+template <typename T, int exp> constexpr T pow2() {
+  static_assert((exp >= 0) && (exp < 100), "Unsupported exponent value");
+  static_assert(value<T>::digits2() >= 10,
+                "Unsupported type; need to update multiplier for support");
+  T result = 1;
+
+  const T multiplier = 1024;
+  const int high = exp / 10;
+  const int low = exp % 10;
+
+  for (int i = 0; i < high; ++i) {
+    result *= multiplier;
+  }
+  for (int i = 0; i < low; ++i) {
+    result *= 2;
+  }
+  return result;
+}
+
 // Provides verification that provided device has necessary aspects to interact
 // with current data type.
 template <typename T>

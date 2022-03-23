@@ -25,17 +25,47 @@ namespace esimd_test::api::functional {
 // All provided methods are safe to use and protected from UB when call
 // static_cast<int>(unsigned int).
 template <typename SrcT, typename DstT> struct value_conv {
+  using less_precision_type =
+      std::conditional_t<(value<SrcT>::digits2() < value<DstT>::digits2()),
+                         SrcT, DstT>;
+
   static inline SrcT denorm_min() {
     if constexpr (!type_traits::is_sycl_floating_point_v<SrcT>) {
       // Return zero for any integral type the same way std::denorm_min does
       return 0;
-    } else if constexpr (sizeof(SrcT) > sizeof(DstT)) {
-      // Use the biggest value so it would not degenerate to zero during
-      // conversion from SrcT to DstT
-      return static_cast<SrcT>(value<DstT>::denorm_min());
     } else {
-      return value<SrcT>::denorm_min();
+      // Return the higher denorm_min value from the type with less precision
+      return static_cast<SrcT>(value<less_precision_type>::denorm_min());
     }
+  }
+
+  static inline SrcT min() {
+    if constexpr (std::is_unsigned_v<SrcT>) {
+      // Use zero explicitly
+      return 0;
+    } else if constexpr (std::is_unsigned_v<DstT> &&
+                         type_traits::is_sycl_floating_point_v<SrcT>) {
+      // While there is a well-defined value wrap for converting from signed
+      // integer type to the unsigned integer type, an attempt to trigger such
+      // wrap while converting from the floating point type directly would
+      // result in UB according to the C++17
+      // So we shouldn't use negative values for such case at all.
+      return 0;
+    } else {
+      // For conversion from signed to signed:
+      //   use the value which could be represented exactly in the both source
+      //   and destination types
+      // For conversion from signed integral to unsigned:
+      //   trigger value wrap by using the signed integral source value
+      return static_cast<SrcT>(
+          value<less_precision_type>::lowest_exact_integral());
+    }
+  }
+
+  static inline SrcT max() {
+    // Use the value which could be represented exactly in the both source and
+    // destination types
+    return static_cast<SrcT>(value<less_precision_type>::max_exact_integral());
   }
 };
 
@@ -50,12 +80,8 @@ std::vector<SrcT> generate_ref_conv_data() {
                     type_traits::is_sycl_floating_point_v<DstT>,
                 "Invalid destination type.");
 
-  // TODO: Implement functions for obtain lowest and max values without UB
-  // cases.
-  static const SrcT positive = static_cast<SrcT>(126.75);
-  static const SrcT max = 10;
-  // Use zero for unsigned types
-  static const SrcT min = std::min<SrcT>(-max, 0);
+  static const SrcT max = value_conv<SrcT, DstT>::max();
+  static const SrcT min = value_conv<SrcT, DstT>::min();
   static const SrcT max_half = max / 2;
   static const SrcT min_half = min / 2;
 
