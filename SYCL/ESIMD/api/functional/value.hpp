@@ -145,6 +145,18 @@ template <typename DataT> struct value {
     const DataT sign = (base_val > direction) ? -1 : 1;
 
     if constexpr (std::is_same_v<DataT, sycl::half>) {
+      // TODO: remove workaround once sycl::half issue with near-zero values
+      // bit representation resolved; currently:
+      //   - smallest subnormal number for sycl::half retrieved by arithemtic
+      //     operations has 0x33800000 binary representation instead of 0x1
+      //   - attempt to have the smallest subnormal number for sycl::half by
+      //     static_cast from appropriate float value would result in unexpected
+      //     zero value
+#ifndef ESIMD_TESTS_ENABLE_HALF_DENORM_MIN_CAST_FROM_FLOAT
+      if (base_val == 0) {
+        return denorm_min();
+      }
+#endif
       // Use float type as intermediate; multiplier is set according to the
       // difference in precision between fp16 and fp32 types
       return static_cast<sycl::half>(
