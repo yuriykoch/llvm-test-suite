@@ -46,7 +46,7 @@ int main(int, char **) {
 #ifdef SIMD_RUN_TEST_WITH_DENORM_INIT_VAL_AND_ULP_STEP
   {
     const auto base_values = ctors::get_init_values_pack<init_val::denorm>();
-    const auto step_values = ctors::get_init_values_pack<init_val::ulp>();
+    const auto step_values = ctors::get_init_values_pack<init_val::ulp_up>();
     passed &= for_all_combinations<ctors::run_test>(
         types, single_size, context, base_values, step_values, queue);
   }
@@ -55,7 +55,7 @@ int main(int, char **) {
     const auto base_values =
         ctors::get_init_values_pack<init_val::inexact, init_val::min>();
     const auto step_values =
-        ctors::get_init_values_pack<init_val::ulp, init_val::ulp_half>();
+        ctors::get_init_values_pack<init_val::ulp_up, init_val::ulp_up_half>();
     passed &= for_all_combinations<ctors::run_test>(
         types, single_size, context, base_values, step_values, queue);
   }

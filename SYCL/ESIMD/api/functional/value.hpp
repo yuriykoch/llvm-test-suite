@@ -138,20 +138,34 @@ template <typename DataT> struct value {
     }
   }
 
+  // Returns a distance to the next representable number up to /p direction
+  // inclusive. Return value is always non-negative
   static DataT ulp(DataT base_val, DataT direction) {
+
+    const DataT sign = (base_val > direction) ? -1 : 1;
+
     if constexpr (std::is_same_v<DataT, sycl::half>) {
+      // Use float type as intermediate; multiplier is set according to the
+      // difference in precision between fp16 and fp32 types
       return static_cast<sycl::half>(
-          // Multiplier is set according to the difference in precision between
-          // fp16 and fp32 types
-          (sycl::nextafter(base_val, direction) - base_val) * 8192);
+          sign * 8192 * (std::nextafter(base_val, direction) - base_val));
+    } else if constexpr (std::is_floating_point_v<DataT>) {
+      return sign * (std::nextafter(base_val, direction) - base_val);
     } else {
-      return std::nextafter(base_val, direction) - base_val;
+      assert(false && "ULP has meaning only for floating point data types");
+      return 0;
     }
   }
 
-  static DataT pos_ulp(DataT base_val) { return ulp(base_val, inf()); }
-
-  static DataT neg_ulp(DataT base_val) { return ulp(base_val, -inf()); }
+  // Returns next representable number in a given direction
+  static auto nextafter(DataT base_val, DataT direction) {
+    // TODO: use sycl::nextafter() once it supports sycl::half
+    if (direction >= base_val) {
+      return base_val + ulp(base_val, max());
+    } else {
+      return base_val - ulp(base_val, lowest());
+    }
+  }
 };
 
 // Provides std::vector with the reference data according to the currently

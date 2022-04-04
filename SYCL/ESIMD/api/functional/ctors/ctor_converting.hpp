@@ -191,10 +191,11 @@ private:
             // taking into account the possibility of UB on border values.
             // We don't have a such UB now because we are using 10f as maximum
             // value.
-            if (!((expected + value<DstT>::pos_ulp(expected)) >= retrieved ||
-                  (expected - value<DstT>::pos_ulp(expected)) >= retrieved ||
-                  (expected + value<DstT>::pos_ulp(expected)) <= retrieved ||
-                  (expected - value<DstT>::pos_ulp(expected)) <= retrieved)) {
+            const auto upper =
+                value<DstT>::nextafter(expected, value<DstT>::max());
+            const auto lower =
+                value<DstT>::nextafter(expected, value<DstT>::lowest());
+            if ((retrieved < lower) || (retrieved > upper)) {
               passed = fail_test(i, retrieved, expected, src_data_type,
                                  dst_data_type);
             }

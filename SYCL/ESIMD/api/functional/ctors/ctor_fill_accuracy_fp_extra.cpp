@@ -46,7 +46,7 @@ int main(int, char **) {
     const auto base_values =
         ctors::get_init_values_pack<ctors::init_val::denorm>();
     const auto step_values =
-        ctors::get_init_values_pack<ctors::init_val::ulp>();
+        ctors::get_init_values_pack<ctors::init_val::ulp_up>();
     passed &= for_all_combinations<ctors::run_test>(
         types, single_size, context, base_values, step_values, queue);
   }
@@ -56,8 +56,8 @@ int main(int, char **) {
         ctors::get_init_values_pack<ctors::init_val::inexact,
                                     ctors::init_val::min>();
     const auto step_values =
-        ctors::get_init_values_pack<ctors::init_val::ulp,
-                                    ctors::init_val::ulp_half>();
+        ctors::get_init_values_pack<ctors::init_val::ulp_up,
+                                    ctors::init_val::ulp_up_half>();
     passed &= for_all_combinations<ctors::run_test>(
         types, single_size, context, base_values, step_values, queue);
   }

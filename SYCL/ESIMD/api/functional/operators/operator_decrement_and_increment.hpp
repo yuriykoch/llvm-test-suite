@@ -139,19 +139,17 @@ struct fp_accuracy_test {
 
     if constexpr (TestCaseT::is_increment()) {
       ref_data.reserve((NumElems > 1) ? NumElems : 6);
-      ref_data.insert(ref_data.end(),
-                      {inexact, denorm_min, -denorm_min,
-                       value<DataT>::pos_ulp(static_cast<DataT>(-1.0)),
-                       value<DataT>::pos_ulp(min),
-                       value<DataT>::neg_ulp(max - 1)});
+      ref_data.insert(ref_data.end(), {inexact, denorm_min, -denorm_min,
+                                       value<DataT>::nextafter(-1, max),
+                                       value<DataT>::nextafter(min, max),
+                                       value<DataT>::nextafter(max - 1, min)});
 
     } else {
       ref_data.reserve((NumElems > 1) ? NumElems : 6);
-      ref_data.insert(ref_data.end(),
-                      {inexact, denorm_min, -denorm_min,
-                       value<DataT>::neg_ulp(static_cast<DataT>(-1.0)),
-                       value<DataT>::neg_ulp(max),
-                       value<DataT>::pos_ulp(min + 1)});
+      ref_data.insert(ref_data.end(), {inexact, denorm_min, -denorm_min,
+                                       value<DataT>::nextafter(-1, max),
+                                       value<DataT>::nextafter(max, min),
+                                       value<DataT>::nextafter(min + 1, max)});
     }
 
     for (size_t i = ref_data.size(); i < NumElems; ++i) {

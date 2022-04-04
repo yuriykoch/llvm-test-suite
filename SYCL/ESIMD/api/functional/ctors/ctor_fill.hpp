@@ -96,8 +96,8 @@ enum class init_val {
   negative,
   denorm,
   inexact,
-  ulp,
-  ulp_half
+  ulp_up,
+  ulp_up_half
 };
 
 // Class used as a kernel ID.
@@ -131,10 +131,10 @@ DataT get_value(DataT base_val = DataT()) {
     return value<DataT>::denorm_min();
   } else if constexpr (Value == init_val::inexact) {
     return 0.1;
-  } else if constexpr (Value == init_val::ulp) {
-    return value<DataT>::pos_ulp(base_val);
-  } else if constexpr (Value == init_val::ulp_half) {
-    return value<DataT>::pos_ulp(base_val) / 2;
+  } else if constexpr (Value == init_val::ulp_up) {
+    return value<DataT>::ulp(base_val, value<DataT>::max());
+  } else if constexpr (Value == init_val::ulp_up_half) {
+    return value<DataT>::ulp(base_val, value<DataT>::max()) / 2;
   } else {
     static_assert(Value != Value, "Unexpected enum value");
   }
@@ -175,11 +175,11 @@ inline std::string init_val_to_string(init_val val) {
   case init_val::inexact:
     return "inexact";
     break;
-  case init_val::ulp:
-    return "ulp";
+  case init_val::ulp_up:
+    return "1 ULP up";
     break;
-  case init_val::ulp_half:
-    return "ulp_half";
+  case init_val::ulp_up_half:
+    return "0.5 ULP up";
     break;
   default:
     assert(false && "Unexpected enum value");
