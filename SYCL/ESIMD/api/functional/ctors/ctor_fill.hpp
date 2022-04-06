@@ -305,8 +305,7 @@ public:
         upper_bound += step_value;
 
         // Enforce strict check for exact zero step
-        if (step_value != 0.)
-        {
+        if (step_value != 0.) {
           lower_bound = value<DataT>::nextafter(lower_bound, lowest);
           upper_bound = value<DataT>::nextafter(upper_bound, max);
         }
