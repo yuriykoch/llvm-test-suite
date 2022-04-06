@@ -269,7 +269,7 @@ public:
       //   NaN opcode to be preserved
 
       for (size_t i = 1; i < result.size(); ++i) {
-        const auto& retrieved = result[i];
+        const auto &retrieved = result[i];
         if (!std::isnan(retrieved)) {
           passed = false;
           log::fail(TestDescriptionT(data_type, BaseVal, Step),
@@ -299,13 +299,13 @@ public:
       const auto lowest = value<DataT>::lowest();
 
       for (size_t i = 1; i < result.size(); ++i) {
-        const auto& retrieved = result[i];
+        const auto &retrieved = result[i];
 
         lower_bound += step_value;
         upper_bound += step_value;
 
         // Enforce strict check for exact zero step
-        //if (step_value != 0.)
+        if (step_value != 0.)
         {
           lower_bound = value<DataT>::nextafter(lower_bound, lowest);
           upper_bound = value<DataT>::nextafter(upper_bound, max);
@@ -323,7 +323,7 @@ public:
       // Bitwise check for integral types
       DataT expected = base_value;
       for (size_t i = 1; i < result.size(); ++i) {
-        const auto& retrieved = result[i];
+        const auto &retrieved = result[i];
         expected += step_value;
 
         if (!are_bitwise_equal(retrieved, expected)) {
