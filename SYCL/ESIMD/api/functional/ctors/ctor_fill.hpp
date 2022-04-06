@@ -256,24 +256,81 @@ public:
 
     // Verify the step value works as expected being passed to the fill
     // constructor.
-    DataT expected_value = base_value;
-    for (size_t i = 1; i < result.size(); ++i) {
-      if constexpr (BaseVal == init_val::nan || Step == init_val::nan) {
+    //
+    // TODO: Provide consistent check for IEEE 754 arithmetic (NaN opcode
+    // logic) and floating point precision corner cases for all tests to avoid
+    // boilerplate code
+    if constexpr (BaseVal == init_val::nan || Step == init_val::nan) {
+      // Separate check for NaN values; no opcode check according to IEEE 754:
+      // - result is restricted to be quiet NaN
+      // - it's recommended ("should" means "is recommended to") to have one of
+      //   the input NaNs as result
+      // - and only in case input NaN is re-used for result we may expect for
+      //   NaN opcode to be preserved
 
-        if (!std::isnan(result[i])) {
+      for (size_t i = 1; i < result.size(); ++i) {
+        const auto& retrieved = result[i];
+        if (!std::isnan(retrieved)) {
           passed = false;
           log::fail(TestDescriptionT(data_type, BaseVal, Step),
-                    "Unexpected value at index ", i, ", retrieved: ", result[i],
+                    "Unexpected value at index ", i, ", retrieved: ", retrieved,
                     ", expected: any NaN value");
         }
-      } else {
+      }
+    } else if constexpr (type_traits::is_sycl_floating_point_v<DataT>) {
+      // Both C++ and SYCL 2020 support different IEEE 754 rounding
+      // modes, which might result in rounding error up to 1 ULP. Rounding error
+      // might be especially noticeable in tests with 0.5 ULP step
+      // Note that std functions do not affect anything except C++ floating
+      // point types, so we cannot use std::fesetround for sycl::half type even
+      // in case it's supported.
+      // As result, we are using less strict cheks. Algorithm below checks for
+      // range [expected - 1ULP, expected + 1ULP] with 3 values within, while
+      // implementation-defined rounding should give only 2 possibly correct
+      // values:
+      //  - either [expected - 1ULP, expected]
+      //  - or [expected, expected + 1ULP]
+      // Because of this systematic error is constantly growing by 1 ULP for
+      // each iteration, but that's the best we can do without manual
+      // configuration of rounding direction
+      DataT lower_bound = base_value;
+      DataT upper_bound = base_value;
+      const auto max = value<DataT>::max();
+      const auto lowest = value<DataT>::lowest();
 
-        expected_value += step_value;
-        if (!are_bitwise_equal(result[i], expected_value)) {
+      for (size_t i = 1; i < result.size(); ++i) {
+        const auto& retrieved = result[i];
+
+        lower_bound += step_value;
+        upper_bound += step_value;
+
+        // Enforce strict check for exact zero step
+        //if (step_value != 0.)
+        {
+          lower_bound = value<DataT>::nextafter(lower_bound, lowest);
+          upper_bound = value<DataT>::nextafter(upper_bound, max);
+        }
+
+        if ((retrieved < lower_bound) || (retrieved > upper_bound)) {
           passed = false;
           log::fail(TestDescriptionT(data_type, BaseVal, Step),
-                    "Unexpected value at index ", i, ", retrieved: ", result[i],
-                    ", expected: ", expected_value);
+                    "Unexpected value at index ", i, ", retrieved: ", retrieved,
+                    ", expected in range from ", lower_bound, " to ",
+                    upper_bound);
+        }
+      }
+    } else {
+      // Bitwise check for integral types
+      DataT expected = base_value;
+      for (size_t i = 1; i < result.size(); ++i) {
+        const auto& retrieved = result[i];
+        expected += step_value;
+
+        if (!are_bitwise_equal(retrieved, expected)) {
+          passed = false;
+          log::fail(TestDescriptionT(data_type, BaseVal, Step),
+                    "Unexpected value at index ", i, ", retrieved: ", retrieved,
+                    ", expected: ", expected);
         }
       }
     }

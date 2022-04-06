@@ -19,10 +19,10 @@
 // must be enabled when it is resolved.
 //
 // The test verifies that simd fill constructor has no precision differences.
-// The test do the following actions:
-//  - call simd with predefined base and step values
-//  - bitwise comparing that output[0] value is equal to base value and
-//    output[i] is equal to output[i -1] + step_value
+// The test does the following actions:
+//  - calls simd fill constructor with predefined base and step values
+//  - ensures the result values are as expected considering the type precision
+//    and any implementation-defined behaviour
 
 #include "ctor_fill.hpp"
 
