@@ -171,11 +171,9 @@ template <typename DataT> struct value {
   // Returns next representable number in a given direction
   static auto nextafter(DataT base_val, DataT direction) {
     // TODO: use sycl::nextafter() once it supports sycl::half
-    if (direction >= base_val) {
-      return base_val + ulp(base_val, max());
-    } else {
-      return base_val - ulp(base_val, lowest());
-    }
+    const DataT sign = (base_val > direction) ? -1 : 1;
+
+    return base_val + sign * ulp(base_val, direction);
   }
 };
 
