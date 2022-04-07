@@ -169,42 +169,29 @@ private:
     });
     queue.wait_and_throw();
 
+    DstT expected_min = 1;
+    DstT expected_max = 0;
     for (size_t i = 0; i < result.size(); ++i) {
-      // We ensure there is no UB here by preparing appropriate reference
-      // values.
       const SrcT &reference = ref_data[i];
-      const DstT &expected = static_cast<DstT>(reference);
       const DstT &retrieved = result[i];
-      if constexpr (type_traits::is_sycl_floating_point_v<DstT>) {
-        // std::isnan() couldn't be called for integral types because it call is
-        // ambiguous GitHub issue for that case:
-        // https://github.com/microsoft/STL/issues/519
-        if (!std::isnan(expected) || !std::isnan(retrieved)) {
-          if (expected != retrieved) {
-            // TODO add a function that will compare with defined accuracy
-            // taking into account the possibility of UB on border values.
-            // We don't have a such UB now because we are using 10f as maximum
-            // value.
-            const auto upper =
-                value<DstT>::nextafter(expected, value<DstT>::max());
-            const auto lower =
-                value<DstT>::nextafter(expected, value<DstT>::lowest());
-            if ((retrieved < lower) || (retrieved > upper)) {
-              passed = false;
-              log::fail(TestDescriptionT(src_data_type, dst_data_type),
-                        "Unexpected value at index ", i,
-                        ", retrieved: ", retrieved, ", expected: ", expected,
-                        " +- 1 ULP after conversion from ", reference);
-            }
-          }
-        }
-      } else {
-        if (expected != retrieved) {
-          passed = false;
-          log::fail(TestDescriptionT(src_data_type, dst_data_type),
-                    "Unexpected value at index ", i, ", retrieved: ", retrieved,
-                    ", expected: ", expected, " after conversion from ",
-                    reference);
+
+      if (!static_cast_to<DstT>::is_expected_result_for(
+              reference, retrieved, expected_min, expected_max)) {
+        passed = false;
+        const TestDescriptionT description(src_data_type, dst_data_type);
+
+        if (expected_min == expected_max) {
+          // We got the same expectations for host side and device side
+          log::fail(description, "Unexpected value at index ", i,
+                    ", retrieved: ", retrieved, ", expected: ", expected_min,
+                    " after conversion from ", reference);
+        } else {
+          // We have possibly different expectations for host side and device
+          // side
+          log::fail(description, "Unexpected value at index ", i,
+                    ", retrieved: ", retrieved, ", expected value in range [",
+                    expected_min, " .. ", expected_max,
+                    "] after conversion from ", reference);
         }
       }
     }

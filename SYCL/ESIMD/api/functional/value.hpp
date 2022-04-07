@@ -19,6 +19,7 @@
 #include "type_traits.hpp"
 #include <sycl/sycl.hpp>
 
+#include <cassert>
 #include <climits>
 #include <limits>
 #include <type_traits>
@@ -118,15 +119,38 @@ template <typename DataT> struct value {
     }
   }
 
-  static DataT nan(unsigned char opcode = 42u) {
+  static DataT nan(unsigned long opcode = 42u) {
     static_assert(type_traits::is_sycl_floating_point_v<DataT>,
                   "NaN has meaning only for floating point data types.");
     if constexpr (std::is_same_v<DataT, double>) {
       return sycl::nan(static_cast<unsigned long>(opcode));
+
     } else if constexpr (std::is_same_v<DataT, float>) {
-      return sycl::nan(static_cast<unsigned int>(opcode));
+      using OpCodeT = unsigned int;
+      assert(opcode <= std::numeric_limits<OpCodeT>::max());
+
+      return sycl::nan(static_cast<OpCodeT>(opcode));
+
     } else if constexpr (std::is_same_v<DataT, sycl::half>) {
-      return details::half_from_bytes(0b11111110u, 0b00000000u + opcode);
+      using OpCodeT = unsigned char;
+      assert(opcode <= std::numeric_limits<OpCodeT>::max());
+
+      return details::half_from_bytes(
+          0b11111110u, 0b00000000u + static_cast<OpCodeT>(opcode));
+    }
+  }
+
+  static DataT nan_max() {
+    static_assert(type_traits::is_sycl_floating_point_v<DataT>,
+                  "NaN has meaning only for floating point data types.");
+    // SYCL 2020 defines a limited set of NaN opcodes available
+    // sycl::nan() is not defined for the sycl::half though
+    if constexpr (std::is_same_v<DataT, double>) {
+      return nan(std::numeric_limits<unsigned long>::max());
+    } else if constexpr (std::is_same_v<DataT, float>) {
+      return nan(std::numeric_limits<unsigned int>::max());
+    } else if constexpr (std::is_same_v<DataT, sycl::half>) {
+      return nan(std::numeric_limits<unsigned char>::max());
     }
   }
 

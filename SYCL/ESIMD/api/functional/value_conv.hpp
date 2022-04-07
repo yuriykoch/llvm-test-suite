@@ -15,8 +15,11 @@
 
 #pragma once
 
+#include "logger.hpp"
 #include "type_traits.hpp"
 #include "value.hpp"
+
+#include <cassert>
 
 namespace esimd_test::api::functional {
 
@@ -129,5 +132,74 @@ std::vector<SrcT> generate_ref_conv_data() {
 
   return ref_data;
 }
+
+template <typename DstT> struct static_cast_to {
+  template <typename SrcT>
+  static bool is_expected_result_for(SrcT reference, DstT retrieved,
+                                     DstT &min_expected, DstT &max_expected) {
+    // We are safe to assume our reference values generation logic doesn't
+    // generate anything out of range
+    // [value<DstT>::lowest()...value<DstT>::max()]
+    min_expected = static_cast<DstT>(reference);
+    max_expected = min_expected;
+
+    static_assert(std::is_reference<decltype(min_expected)>::value);
+    static_assert(std::is_reference<decltype((min_expected))>::value);
+
+    if constexpr (!type_traits::is_sycl_floating_point_v<DstT>) {
+      // Well-defined for conversion to integral types
+      return retrieved == min_expected;
+    } else {
+      // Handle NaN source value case first
+      // We cannot call std::isnan() for integral types because of ambiguous
+      // call. Related GitHub issue: https://github.com/microsoft/STL/issues/519
+      if constexpr (type_traits::is_sycl_floating_point_v<SrcT>) {
+        if (std::isnan(reference)) {
+          min_expected = value<DstT>::nan(0);
+          max_expected = value<DstT>::nan_max();
+          return std::isnan(retrieved);
+        }
+      }
+      // Now we are safe to assume any NaN value retrieved is an error
+      if (std::isnan(retrieved)) {
+        return false;
+      }
+      // Handle infinity cases explicitly
+      if (sycl::isinf(min_expected)) {
+        return retrieved == min_expected;
+      }
+      // Now handle the rounding of values
+      // C++17 states it's implementation-defined which way (up or down) value
+      // would round in case it couldn't be represented exactly in destination
+      // type. For example,
+      // for 32-bit float with 23 fraction bits the following is true
+      //    const auto retrieved = static_cast<float>(16777217ul);
+      //    assert((retrieved == 16777216.f) || (retrieved == 16777218.f));
+      //
+      // First of all, no need to do such check if we convert to a type with a
+      // higher or same precision (or a higher or same range of exactly
+      // representable values if we speak about conversion from a integral type
+      // to a floating point type - an unsigned char would fit in the float for
+      // example)
+      if constexpr (value<SrcT>::digits2() <= value<DstT>::digits2()) {
+        log::debug("- no precision loss possible, skipping ULP check...");
+        return retrieved == min_expected;
+      } else {
+        log::debug("- precision loss possible, moving to ULP check...");
+        // Note that static_cast<SrcT>(static_cast<DstT>(reference)) might
+        // result in UB on SrcT range border values, so it's impossible to get a
+        // rounding direction in a simple way, so let's make a less strict, but
+        // much simplier check
+
+        const auto lowest = value<DstT>::lowest();
+        const auto max = value<DstT>::max();
+        min_expected = value<DstT>::nextafter(min_expected, lowest);
+        max_expected = value<DstT>::nextafter(max_expected, max);
+
+        return ((retrieved >= min_expected) && (retrieved <= max_expected));
+      }
+    }
+  }
+};
 
 } // namespace esimd_test::api::functional
