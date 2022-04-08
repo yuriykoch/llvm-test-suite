@@ -42,10 +42,8 @@ int main(int, char **) {
       unnamed_type_pack<ctors::initializer, ctors::var_decl,
                         ctors::rval_in_expr, ctors::const_ref>::generate();
 
-  // Run for specific combinations of types, vector length, base and step values
-  // and invocation contexts.
-  // The first types is the source types. the second types is the destination
-  // types.
+  // Run for specific combinations of source types, vector length, destination
+  // types and invocation contexts
   passed &= for_all_combinations<ctors::run_test>(fp_types, single_size,
                                                   fp_types, contexts, queue);
   passed &= for_all_combinations<ctors::run_test>(fp_types, single_size,
