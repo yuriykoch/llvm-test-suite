@@ -143,6 +143,27 @@ template <typename DstT> struct static_cast_to {
     min_expected = static_cast<DstT>(reference);
     max_expected = min_expected;
 
+#ifndef ESIMD_TESTS_ENABLE_HALF_DENORM_MIN_CAST_FROM_FLOAT
+    if constexpr (std::is_same_v<DstT, sycl::half> &&
+                  std::is_floating_point_v<SrcT>) {
+      // An issue converting double/float to sycl::half was observed on win64
+      // Binary representation of minimum denormal sycl::half value is not
+      // bitwise equal to 0x1 as required by IEEE 754, so static_cast from
+      // float/double type gives 0 instead of exact value originally stored in
+      // sycl::half
+      const auto dst_denorm_min = value<DstT>::denorm_min();
+      // It's a temporary workaround, so no need to cover all possible cases in
+      // range [-denorm_min*2, denorm_min*2] given the reference values used
+      if (reference == dst_denorm_min) {
+        // Any sycl::half value could be stored within any C++ floating point
+        // type with no precision loss
+        min_expected = dst_denorm_min;
+        max_expected = dst_denorm_min;
+        return retrieved == dst_denorm_min;
+      }
+    }
+#endif
+
     static_assert(std::is_reference<decltype(min_expected)>::value);
     static_assert(std::is_reference<decltype((min_expected))>::value);
 
